@@ -2,41 +2,45 @@ from crewai import Agent, Task, Crew
 
 from crewai_tools import FileReadTool
 
-from utils import write_results_to_csv_file
+import os
 
-cointracker_csv_template = FileReadTool(file_path='./cointracker_csv_template.csv')
+import sys
+sys.path.append('../utils')  
+
+openai_api_key = os.environ["OPENAI_API_KEY"]
+os.environ["OPENAI_MODEL_NAME"] = 'gpt-3.5-turbo'
+
 river_financial_csv = FileReadTool(file_path='./river_financial_example.csv')
+cointracker_template_csv = FileReadTool(file_path='./cointracker_csv_template.csv')
 
 # Agent 1: Data analyst
 data_analyst_agent = Agent(
     role="Data Analyst",
-    goal="Convert the river financial csv to match the cointracker template",
-    tools = [cointracker_csv_template, river_financial_csv],
+    goal="Convert a given csv file from river financial to a cointracker.io csv file to be imported",
+    tools = [cointracker_template_csv, river_financial_csv],
     verbose=True,
-    backstory=(
-        "As a data analyst, you will take any size river financial "
-        "csv and convert it to the cointracker csv format based on the template file"
-    )
+    backstory="As a data analyst, you convert csv files downloaded "
+              "from river financial so they can be imported into cointracker.io as a csv wallet"    
 )
 
-# Task for Data Analyst Agent: convert river financial csv into cointracker csv
-data_analysis_task = Task(
+# Task convert the river financial data into a cointracker.io csv
+convertion_task = Task(
     description=(
-        "Convert the river financial csv into the cointracker csv using the cointracker template"
+        "Using the tools convert the river financial csv to work with cointracker.io csv import by changing the columns to match the cointracker csv import file"
     ),
     expected_output=(
-        "A csv file containing the converted data from the river financial csv"
+        "The data in the river financial csv should be reformatted to work with cointracker.io csv import."
     ),
-    agent=data_analyst_agent,
+    output_file="results.csv",
+    agent=data_analyst_agent
 )
 
 crew = Crew(
     agents=[data_analyst_agent],    
-    tasks=[data_analysis_task],	
-    verbose=True
+    tasks=[convertion_task],	
+    verbose=True,
+	memory=True
 )
 
-result = crew.kickoff()
-
-write_results_to_csv_file(result.raw)
+crew.kickoff()
 
